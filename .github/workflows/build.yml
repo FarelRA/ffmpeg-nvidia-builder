@@ -17,7 +17,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y git nvidia-cuda-toolkit nvidia-cuda-dev libva-dev cargo python3 zip
+          sudo apt-get install -y git nvidia-cuda-toolkit nvidia-cuda-dev libva-dev cargo python3 python3-pip zip
 
       - name: Cache ffmpeg-build-script
         id: cache-build-script
@@ -29,6 +29,21 @@ jobs:
       - name: Clone ffmpeg-build-script
         if: steps.cache-build-script.outputs.cache-hit != 'true'
         run: git clone https://github.com/markus-perl/ffmpeg-build-script.git
+
+      - name: "Background: Fix Permissions"
+        shell: bash
+        run: |
+          WORKSPACE_PATH="./ffmpeg-build-script/workspace"
+          while true; do
+            sudo chown -R $USER:$USER "$WORKSPACE_PATH"
+            sudo find "$WORKSPACE_PATH" -type f -exec chmod 644 {} +
+            sleep 1
+            # Check for a file that indicates the build is likely done (e.g., ffmpeg binary)
+            if [ -f "$WORKSPACE_PATH/bin/ffmpeg" ]; then
+              echo "FFmpeg build detected as done. Stopping background permission fix."
+              break
+            fi
+          done &
 
       - name: Build FFmpeg
         working-directory: ffmpeg-build-script
