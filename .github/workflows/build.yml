@@ -2,6 +2,10 @@ name: Build FFmpeg with Nvidia Acceleration
 
 on:
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag (e.g., v1.0.0 or a date)'
+        required: true
   schedule:
     - cron: '0 0 */14 * 1' # Runs every other Monday at 00:00 UTC
 
@@ -13,6 +17,15 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
+      - name: Set Release Tag
+        id: set_tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "release_tag=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "release_tag=automated-build" >> $GITHUB_OUTPUT
+          fi
+
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -48,4 +61,5 @@ jobs:
       - name: Release Binaries
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.set_tag.outputs.release_tag }}
           files: ffmpeg-build-script/workspace/ffmpeg-bin.zip
