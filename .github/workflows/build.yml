@@ -2,26 +2,25 @@ name: Build FFmpeg with Nvidia Acceleration
 
 on:
   workflow_dispatch:
-    inputs:
-      tag_name:
-        description: 'Release Tag (e.g., v1.0.0 or a date)'
-        required: false
   schedule:
     - cron: '0 0 */14 * 1' # Runs every other Monday at 00:00 UTC
 
+permissions:
+  contents: write
+  discussions: write
+  
 jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y git nvidia-cuda-toolkit nvidia-cuda-dev libva-dev cargo python3 python3-pip zip
+          sudo apt-get install -y git nvidia-cuda-toolkit nvidia-cuda-dev libva-dev python3 python3-pip zip
 
       - name: Cache ffmpeg-build-script
         id: cache-build-script
-        uses: actions/cache@v3
+        uses: actions/cache@v4.2.0
         with:
           path: ffmpeg-build-script
           key: ffmpeg-build-script-${{ github.sha }}
@@ -30,56 +29,23 @@ jobs:
         if: steps.cache-build-script.outputs.cache-hit != 'true'
         run: git clone https://github.com/markus-perl/ffmpeg-build-script.git
 
-      - name: "Background: Fix Permissions"
-        shell: bash
-        run: |
-          WORKSPACE_PATH="./ffmpeg-build-script/workspace"
-          while true; do
-            sudo chown -R $USER:$USER "$WORKSPACE_PATH"
-            sudo find "$WORKSPACE_PATH" -type f -exec chmod 644 {} +
-            sleep 1
-            # Check for a file that indicates the build is likely done (e.g., ffmpeg binary)
-            if [ -f "$WORKSPACE_PATH/bin/ffmpeg" ]; then
-              echo "FFmpeg build detected as done. Stopping background permission fix."
-              break
-            fi
-          done &
-
       - name: Build FFmpeg
         working-directory: ffmpeg-build-script
         run: |
-          CUDA_COMPUTE_CAPABILITY=75 SKIPINSTALL=yes ./build-ffmpeg --enable-gpl-and-non-free --build --full-static
+          CUDA_COMPUTE_CAPABILITY=75 SKIPINSTALL=yes SKIPRAV1E=yes VERBOSE=yes ./build-ffmpeg --enable-gpl-and-non-free --build --full-static
 
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: ffmpeg-binaries
-          path: ffmpeg-build-script/workspace/bin/*
-
-      - name: Create Release
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name != ''
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.event.inputs.tag_name }}
-          release_name: FFmpeg Binaries ${{ github.event.inputs.tag_name }}
-          body: |
-            Pre-built FFmpeg binaries with Nvidia hardware acceleration.
-
-      - name: Archive Binaries for Release
-        if: steps.create_release.outputs.upload_url != ''
+      - name: Archive Binaries
         run: |
           cd ffmpeg-build-script/workspace
           zip -r ffmpeg-bin.zip bin
 
-      - name: Upload Release Asset
-        if: steps.create_release.outputs.upload_url != ''
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4.5.0
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ffmpeg-build-script/workspace/ffmpeg-bin.zip
-          asset_name: ffmpeg-bin.zip
+          name: ffmpeg-artifact
+          path: ffmpeg-build-script/workspace/ffmpeg-bin.zip
+
+      - name: Release Binaries
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ffmpeg-build-script/workspace/ffmpeg-bin.zip
