@@ -29,7 +29,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y git nvidia-cuda-toolkit nvidia-cuda-dev libva-dev python3 python3-pip zip
+          sudo apt-get install -y git nvidia-cuda-toolkit libva-dev python3 python3-pip zip
 
       - name: Cache ffmpeg-build-script
         id: cache-build-script
@@ -45,7 +45,7 @@ jobs:
       - name: Build FFmpeg
         working-directory: ffmpeg-build-script
         run: |
-          CUDA_COMPUTE_CAPABILITY=75 SKIPINSTALL=yes SKIPRAV1E=yes VERBOSE=yes ./build-ffmpeg --enable-gpl-and-non-free --build --full-static
+          CUDA_COMPUTE_CAPABILITY=75 SKIPINSTALL=yes SKIPRAV1E=yes VERBOSE=yes ./build-ffmpeg --enable-gpl-and-non-free --build
 
       - name: Archive Binaries
         run: |
