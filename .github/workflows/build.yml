@@ -17,7 +17,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y git nvidia-cuda-toolkit nvidia-cuda-dev libva-dev zip
+          sudo apt-get install -y git nvidia-cuda-toolkit nvidia-cuda-dev libva-dev cargo python3 zip
 
       - name: Cache ffmpeg-build-script
         id: cache-build-script
